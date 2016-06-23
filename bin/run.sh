@@ -1,7 +1,12 @@
 #!/bin/bash
 
 cd /opt/wallabag/app
-/usr/bin/php bin/console wallabag:install --env=prod -n
+
+if [ $INSTALL == 1 ]; then
+  /usr/bin/php bin/console wallabag:install --env=prod -n
+fi
+
+/usr/bin/php bin/console cache:clear --env=prod
 
 chown -R nobody:nobody /opt/wallabag
 

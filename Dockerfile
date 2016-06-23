@@ -11,7 +11,8 @@ ENV WALLABAG_VERSION=2.0.5 \
   SYMFONY__ENV__MAILER_HOST=127.0.0.1 \
   SYMFONY__ENV__MAILER_USER=~ \
   SYMFONY__ENV__MAILER_PASSWORD=~ \
-  SYMFONY__ENV__FROM_EMAIL=wallabag@example.com
+  SYMFONY__ENV__FROM_EMAIL=wallabag@example.com \
+  INSTALL=1
 
 RUN apk add --update \
   bash \
