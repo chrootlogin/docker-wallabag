@@ -1,71 +1,72 @@
-FROM alpine:edge
-MAINTAINER Marvin Steadfast <marvin@xsteadfastx.org>
+FROM alpine:latest
+MAINTAINER Simon Erhardt <hello@rootlogin.ch>
 
 ENV WALLABAG_VERSION=2.0.5 \
-    SYMFONY__ENV__DATABASE_DRIVER=pdo_sqlite \
-    SYMFONY__ENV__DATABASE_HOST=127.0.0.1 \
-    SYMFONY__ENV__DATABASE_PORT=~ \
-    SYMFONY__ENV__DATABASE_NAME=symfony \
-    SYMFONY__ENV__DATABASE_USER=root \
-    SYMFONY__ENV__DATABASE_PASSWORD=~ \
-    SYMFONY__ENV__SECRET=ovmpmAWXRCabNlMgzlzFXDYmCFfzGv \
-    SYMFONY__ENV__MAILER_HOST=127.0.0.1 \
-    SYMFONY__ENV__MAILER_USER=~ \
-    SYMFONY__ENV__MAILER_PASSWORD=~ \
-    SYMFONY__ENV__FROM_EMAIL=wallabag@example.com
+  SYMFONY__ENV__DATABASE_DRIVER=pdo_sqlite \
+  SYMFONY__ENV__DATABASE_HOST=127.0.0.1 \
+  SYMFONY__ENV__DATABASE_PORT=~ \
+  SYMFONY__ENV__DATABASE_NAME=symfony \
+  SYMFONY__ENV__DATABASE_USER=root \
+  SYMFONY__ENV__DATABASE_PASSWORD=~ \
+  SYMFONY__ENV__SECRET=ovmpmAWXRCabNlMgzlzFXDYmCFfzGv \
+  SYMFONY__ENV__MAILER_HOST=127.0.0.1 \
+  SYMFONY__ENV__MAILER_USER=~ \
+  SYMFONY__ENV__MAILER_PASSWORD=~ \
+  SYMFONY__ENV__FROM_EMAIL=wallabag@example.com
 
+RUN apk add --update \
+  bash \
+  curl \
+  git \
+  nginx \
+  openssl \
+  php5 \
+  php5-ctype \
+  php5-curl \
+  php5-dom \
+  php5-fpm \
+  php5-gd \
+  php5-iconv \
+  php5-json \
+  php5-openssl \
+  php5-pdo_mysql \
+  php5-pdo_sqlite \
+  php5-phar \
+  php5-xml \
+  supervisor \
+  && rm -rf /var/cache/apk/*
 
-RUN echo "@testing http://dl-4.alpinelinux.org/alpine/edge/testing" >> /etc/apk/repositories \
- && apk add --update \
-      ansible \
-      curl \
-      git \
-      libwebp@testing \
-      mariadb-client \
-      nginx \
-      pcre \
-      php7 \
-      php7-ctype@testing \
-      php7-curl@testing \
-      php7-dom@testing \
-      php7-fpm@testing \
-      php7-gd@testing \
-      php7-gettext@testing \
-      php7-iconv@testing \
-      php7-json@testing \
-      php7-mbstring@testing \
-      php7-openssl@testing \
-      php7-pdo_mysql@testing \
-      php7-pdo_pgsql@testing \
-      php7-pdo_sqlite@testing \
-      php7-phar@testing \
-      php7-session@testing \
-      php7-xml@testing \
-      php7@testing\
-      py-mysqldb \
-      py-psycopg2 \
-      py-simplejson \
-      s6 \
- && rm -rf /var/cache/apk/*
+RUN ln -sf /dev/stdout /var/log/nginx/access.log \
+  && ln -sf /dev/stderr /var/log/nginx/error.log
 
-RUN ln -s /usr/bin/php7 /usr/bin/php \
- && ln -sf /dev/stdout /var/log/nginx/access.log \
- && ln -sf /dev/stderr /var/log/nginx/error.log
+RUN mkdir -p /opt/wallabag \
+  && mkdir /opt/wallabag/data \
+  && mkdir /opt/wallabag/bin
+
+COPY bin/init.sh /opt/wallabag/bin/init.sh
 
 RUN curl -s http://getcomposer.org/installer | php \
- && mv composer.phar /usr/local/bin/composer
+  && mv composer.phar /usr/local/bin/composer
 
-RUN git clone --branch $WALLABAG_VERSION --depth 1 https://github.com/wallabag/wallabag.git /var/www/wallabag
+RUN mkdir -p /opt/wallabag/app \
+  && git clone --branch $WALLABAG_VERSION --depth 1 https://github.com/wallabag/wallabag.git /opt/wallabag/app
 
-COPY root /
+RUN chmod +x /opt/wallabag/bin/init.sh \
+  && /opt/wallabag/bin/init.sh
 
-RUN cd /var/www/wallabag \
- && SYMFONY_ENV=prod composer install --no-dev -o --prefer-dist
+RUN cd /opt/wallabag/app \
+  && SYMFONY_ENV=prod composer install --no-dev -o --prefer-dist
 
-RUN chown -R nobody:nobody /var/www/wallabag
+COPY etc/supervisord.conf /etc/supervisord.conf
+COPY etc/php-fpm.conf /etc/php5/php-fpm.conf
+COPY etc/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY etc/nginx/fastcgi_params /etc/nginx/fastcgi_params
 
-RUN chmod +x /entrypoint.sh
+RUN rm -rf /opt/wallabag/app/var/cache/*
+
+COPY bin/run.sh /opt/wallabag/bin/run.sh
+
+RUN chmod +x /opt/wallabag/bin/run.sh
 
 EXPOSE 80
-ENTRYPOINT ["/entrypoint.sh"]
-CMD ["wallabag"]
+ENTRYPOINT ["/opt/wallabag/bin/run.sh"]
