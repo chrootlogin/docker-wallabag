@@ -39,11 +39,18 @@ RUN apk add --update \
 RUN ln -sf /dev/stdout /var/log/nginx/access.log \
   && ln -sf /dev/stderr /var/log/nginx/error.log
 
+COPY etc/supervisord.conf /etc/supervisord.conf
+COPY etc/php-fpm.conf /etc/php5/php-fpm.conf
+COPY etc/nginx/nginx.conf /etc/nginx/nginx.conf
+COPY etc/nginx/fastcgi_params /etc/nginx/fastcgi_params
+
 RUN mkdir -p /opt/wallabag \
   && mkdir /opt/wallabag/data \
   && mkdir /opt/wallabag/bin
 
-COPY bin/init.sh /opt/wallabag/bin/init.sh
+COPY bin/* /opt/wallabag/bin/
+
+RUN chmod +x /opt/wallabag/bin/*.sh
 
 RUN curl -s http://getcomposer.org/installer | php \
   && mv composer.phar /usr/local/bin/composer
@@ -51,22 +58,10 @@ RUN curl -s http://getcomposer.org/installer | php \
 RUN mkdir -p /opt/wallabag/app \
   && git clone --branch $WALLABAG_VERSION --depth 1 https://github.com/wallabag/wallabag.git /opt/wallabag/app
 
-RUN chmod +x /opt/wallabag/bin/init.sh \
-  && /opt/wallabag/bin/init.sh
-
 RUN cd /opt/wallabag/app \
-  && SYMFONY_ENV=prod composer install --no-dev -o --prefer-dist
-
-COPY etc/supervisord.conf /etc/supervisord.conf
-COPY etc/php-fpm.conf /etc/php5/php-fpm.conf
-COPY etc/nginx/nginx.conf /etc/nginx/nginx.conf
-COPY etc/nginx/fastcgi_params /etc/nginx/fastcgi_params
+  && SYMFONY_ENV=prod composer install --no-scripts --no-dev -o --prefer-dist
 
 RUN rm -rf /opt/wallabag/app/var/cache/*
-
-COPY bin/run.sh /opt/wallabag/bin/run.sh
-
-RUN chmod +x /opt/wallabag/bin/run.sh
 
 EXPOSE 80
 ENTRYPOINT ["/opt/wallabag/bin/run.sh"]
