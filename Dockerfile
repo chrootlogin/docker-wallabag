@@ -48,10 +48,6 @@ RUN mkdir -p /opt/wallabag \
   && mkdir /opt/wallabag/data \
   && mkdir /opt/wallabag/bin
 
-COPY bin/* /opt/wallabag/bin/
-
-RUN chmod +x /opt/wallabag/bin/*.sh
-
 RUN curl -s http://getcomposer.org/installer | php \
   && mv composer.phar /usr/local/bin/composer
 
@@ -62,6 +58,10 @@ RUN cd /opt/wallabag/app \
   && SYMFONY_ENV=prod composer install --no-scripts --no-dev -o --prefer-dist
 
 RUN rm -rf /opt/wallabag/app/var/cache/*
+
+COPY bin/* /opt/wallabag/bin/
+
+RUN chmod +x /opt/wallabag/bin/*.sh
 
 EXPOSE 80
 ENTRYPOINT ["/opt/wallabag/bin/run.sh"]

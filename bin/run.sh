@@ -1,7 +1,15 @@
 #!/bin/bash
 
+# SIGTERM-handler
+term_handler() {
+  if [ $pid -ne 0 ]; then
+    kill -SIGTERM "$pid"
+    wait "$pid"
+  fi
+  exit 143; # 128 + 15 -- SIGTERM
+}
+
 echo "Starting wallabag environment..."
-echo
 
 echo -n "Generating wallabag parameters.yml..."
 
@@ -14,8 +22,8 @@ parameters:
     database_name: $SYMFONY__ENV__DATABASE_NAME
     database_user: $SYMFONY__ENV__DATABASE_USER
     database_password: $SYMFONY__ENV__DATABASE_PASSWORD
+    database_table_prefix: "wallabag_"
     database_path: "%kernel.root_dir%/../data/db/wallabag.sqlite"
-    database_table_prefix: wallabag_
 
     test_database_driver: pdo_sqlite
     test_database_host: 127.0.0.1
@@ -46,15 +54,35 @@ parameters:
 EOF
 echo " done!"
 
-cd /opt/wallabag/app
+echo "Preparing wallabag installation..."
 
-env
-cat /opt/wallabag/app/app/config/parameters.yml
+cd /opt/wallabag/app
 
 if [ $INSTALL == 1 ]; then
   /usr/bin/php bin/console wallabag:install --env=prod -n
+else
+  /usr/bin/php bin/console cache:clear --env=prod
+  /usr/bin/php bin/console assets:install --env=prod
+  /usr/bin/php bin/console assetic:dump --env=prod
 fi
 
 chown -R nobody:nobody /opt/wallabag
 
-/usr/bin/supervisord -c /etc/supervisord.conf
+echo "Starting supervisord..."
+
+pid=0
+
+# setup handlers
+# on callback, kill the last background process, which is `tail -f /dev/null` and execute the specified handler
+trap 'kill ${!}; term_handler' SIGTERM
+trap 'kill ${!}; term_handler' INT
+
+# run application
+/usr/bin/supervisord -c /etc/supervisord.conf &
+pid="$!"
+
+# wait indefinetely
+while true
+do
+  tail -f /dev/null & wait ${!}
+done
