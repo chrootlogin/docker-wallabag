@@ -36,8 +36,8 @@ RUN apk add --update \
   supervisor \
   && rm -rf /var/cache/apk/*
 
-RUN ln -sf /dev/stdout /var/log/nginx/access.log \
-  && ln -sf /dev/stderr /var/log/nginx/error.log
+#RUN ln -sf /dev/stdout /var/log/nginx/access.log \
+#  && ln -sf /dev/stderr /var/log/nginx/error.log
 
 COPY etc/supervisord.conf /etc/supervisord.conf
 COPY etc/php-fpm.conf /etc/php5/php-fpm.conf
@@ -57,7 +57,8 @@ RUN mkdir -p /opt/wallabag/app \
 RUN cd /opt/wallabag/app \
   && SYMFONY_ENV=prod composer install --no-scripts --no-dev -o --prefer-dist
 
-RUN rm -rf /opt/wallabag/app/var/cache/*
+RUN rm -rf /opt/wallabag/app/var/cache/* \
+  && touch /opt/wallabag/app/var/bootstrap.php.cache
 
 COPY bin/* /opt/wallabag/bin/
 
