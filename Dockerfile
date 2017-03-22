@@ -21,6 +21,7 @@ RUN apk add --update \
   nginx \
   openssl \
   php5 \
+  php5-bcmath \
   php5-ctype \
   php5-curl \
   php5-dom \
